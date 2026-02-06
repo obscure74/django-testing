@@ -1,138 +1,78 @@
+from http import HTTPStatus
+
 import pytest
-from django.contrib.auth.models import User
 from django.urls import reverse
-from django.urls.exceptions import NoReverseMatch
-from news.models import News, Comment
+
+pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.django_db
 class TestRoutes:
+    @pytest.mark.parametrize(
+        "parametrized_client, url_name, args, expected_status",
+        [
+            ("client", "news:home", None, HTTPStatus.OK),
+            ("client", "users:login", None, HTTPStatus.OK),
+            ("client", "users:logout", None, HTTPStatus.METHOD_NOT_ALLOWED),
+            ("client", "users:signup", None, HTTPStatus.OK),
+            ("client", "news:detail", "news", HTTPStatus.OK),
+            ("client", "news:edit", "comment", HTTPStatus.FOUND),
+            ("client", "news:delete", "comment", HTTPStatus.FOUND),
+            ("author_client", "news:edit", "comment", HTTPStatus.OK),
+            ("author_client", "news:delete", "comment", HTTPStatus.OK),
+            ("user_client", "news:edit", "comment", HTTPStatus.NOT_FOUND),
+            ("user_client", "news:delete", "comment", HTTPStatus.NOT_FOUND),
+        ],
+    )
+    def test_pages_status_codes(
+        self,
+        request,
+        news,
+        comment,
+        parametrized_client,
+        url_name,
+        args,
+        expected_status,
+    ):
+        client = request.getfixturevalue(parametrized_client)
 
-    @pytest.fixture
-    def author(self):
-        return User.objects.create_user(
-            username='author', password='password123'
-        )
+        if args == "news":
+            url_args = (news.id,)
+        elif args == "comment":
+            url_args = (comment.id,)
+        else:
+            url_args = ()
 
-    @pytest.fixture
-    def reader(self):
-        return User.objects.create_user(
-            username='reader', password='password123'
-        )
-
-    @pytest.fixture
-    def news(self):
-        return News.objects.create(
-            title='Тестовая новость', text='Текст новости'
-        )
-
-    @pytest.fixture
-    def comment(self, author, news):
-        return Comment.objects.create(
-            news=news,
-            author=author,
-            text='Тестовый комментарий'
-        )
-
-    def test_home_page_anonymous_accessible(self, client):
-        """Главная страница доступна анонимному пользователю."""
-        try:
-            url = reverse('news:home')
-        except NoReverseMatch:
-            url = '/'
-
+        url = reverse(url_name, args=url_args)
         response = client.get(url)
-        assert response.status_code == 200
+        assert response.status_code == expected_status
 
-    def test_news_detail_page_anonymous_accessible(self, client, news):
-        """Страница отдельной новости доступна анонимному пользователю."""
-        try:
-            url = reverse('news:detail', args=(news.id,))
-        except NoReverseMatch:
-            url = f'/{news.id}/'
-
+    @pytest.mark.parametrize(
+        "url_name, args",
+        [
+            ("news:edit", "comment"),
+            ("news:delete", "comment"),
+        ],
+    )
+    def test_anonymous_redirect_to_login(
+        self, client, comment, url_name, args, login_url
+    ):
+        url_args = (comment.id,) if args == "comment" else ()
+        url = reverse(url_name, args=url_args)
         response = client.get(url)
-        assert response.status_code == 200
+        assert response.status_code == HTTPStatus.FOUND
+        expected_url = f"{login_url}?next={url}"
+        assert response.url == expected_url
 
-    def test_comment_author_can_edit_delete(self, client, author, comment):
-        """Страницы удаления и редактирования комментария доступны автору."""
-        client.login(username='author', password='password123')
-
-        try:
-            edit_url = reverse('news:edit', args=(comment.id,))
-        except NoReverseMatch:
-            edit_url = f'/comment/{comment.id}/edit/'
-
-        response = client.get(edit_url)
-        assert response.status_code == 200
-
-        try:
-            delete_url = reverse('news:delete', args=(comment.id,))
-        except NoReverseMatch:
-            delete_url = f'/comment/{comment.id}/delete/'
-
-        response = client.get(delete_url)
-        assert response.status_code == 200
-
-    def test_anonymous_redirect_to_login_for_comment_actions(
-            self, client, comment):
-        """Анонимный пользователь перенаправляется на страницу авторизации."""
-        urls = []
-        try:
-            urls.append(reverse('news:edit', args=(comment.id,)))
-            urls.append(reverse('news:delete', args=(comment.id,)))
-        except NoReverseMatch:
-            urls.append(f'/comment/{comment.id}/edit/')
-            urls.append(f'/comment/{comment.id}/delete/')
-
-        try:
-            login_url = reverse('users:login')
-        except NoReverseMatch:
-            login_url = '/auth/login/'
-
-        for url in urls:
-            response = client.get(url)
-            assert response.status_code == 302
-            assert login_url in response.url
-
-    def test_user_cannot_access_other_comments(
-            self, client, author, reader, news):
-        """Авторизованный пользователь не может редактировать
-        чужие комментарии.
-        """
-        other_comment = Comment.objects.create(
-            news=news,
-            author=reader,
-            text='Чужой комментарий'
-        )
-
-        client.login(username='author', password='password123')
-
-        urls = []
-        try:
-            urls.append(reverse('news:edit', args=(other_comment.id,)))
-            urls.append(reverse('news:delete', args=(other_comment.id,)))
-        except NoReverseMatch:
-            urls.append(f'/comment/{other_comment.id}/edit/')
-            urls.append(f'/comment/{other_comment.id}/delete/')
-
-        for url in urls:
-            response = client.get(url)
-            assert response.status_code == 404
-
-    def test_auth_pages_accessible(self, client):
-        """Страницы регистрации, входа и выхода доступны
-        анонимным пользователям.
-        """
-        try:
-            login_url = reverse('users:login')
-            logout_url = reverse('users:logout')
-            signup_url = reverse('users:signup')
-
-            urls = [login_url, logout_url, signup_url]
-        except NoReverseMatch:
-            urls = ['/auth/login/', '/auth/logout/', '/auth/signup/']
-
-        for url in urls:
-            response = client.get(url)
-            assert response.status_code in [200, 405]
+    @pytest.mark.parametrize(
+        "reverse_name, expected_status",
+        [
+            ("users:login", HTTPStatus.OK),
+            ("users:logout", HTTPStatus.METHOD_NOT_ALLOWED),
+            ("users:signup", HTTPStatus.OK),
+        ],
+    )
+    def test_auth_pages_accessible(self, client, reverse_name, expected_status):
+        """Страницы регистрации, входа и выхода доступны анонимам."""
+        url = reverse(reverse_name)
+        response = client.get(url)
+        assert response.status_code == expected_status
