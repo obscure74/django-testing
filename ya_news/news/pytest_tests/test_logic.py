@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
 import pytest
-from news.forms import BAD_WORDS
+from news.forms import BAD_WORDS, WARNING
 from news.models import Comment
 
 pytestmark = pytest.mark.django_db
@@ -46,18 +46,24 @@ class TestLogic:
         data = {"text": f"Это {bad_word} слово"}
         response = user_client.post(news_detail_url, data)
 
-        # Используем assertFormError правильно
         assert response.status_code == HTTPStatus.OK
-        # Проверяем, что форма содержит ошибку
-        assert "form" in response.context
-        # Проверяем ошибку в поле text
-        assert "text" in response.context["form"].errors
         # Проверяем, что комментарий не создался
         assert Comment.objects.count() == initial_count
+        # Проверяем, что в контексте есть форма
+        assert "form" in response.context
+        form = response.context["form"]
+        # Проверяем, что форма содержит ошибки
+        assert form.errors
+        # Проверяем, что ошибка в поле text
+        assert "text" in form.errors
+        # Проверяем, что ошибка содержит предупреждение
+        text_errors = form.errors["text"]
+        assert any(WARNING in str(error) for error in text_errors)
 
-    def test_user_can_edit_delete_own_comments(
-        self, author_client, author, news, comment, comment_edit_url, comment_delete_url
-    ):
+    def test_user_can_edit_delete_own_comments(self, author_client,
+                                               author, news, comment,
+                                               comment_edit_url,
+                                               comment_delete_url):
         """
         Авторизованный пользователь может редактировать
         и удалять свои комментарии.
@@ -77,9 +83,10 @@ class TestLogic:
         assert response.status_code == HTTPStatus.FOUND
         assert not Comment.objects.filter(pk=comment.id).exists()
 
-    def test_user_cannot_edit_delete_other_comments(
-        self, user_client, author, news, comment, comment_edit_url, comment_delete_url
-    ):
+    def test_user_cannot_edit_delete_other_comments(self, user_client, author,
+                                                    news, comment,
+                                                    comment_edit_url,
+                                                    comment_delete_url):
         """Пользователь не может редактировать/удалять чужие комментарии."""
         # Тест редактирования чужого комментария
         edit_data = {"text": "Взломанный комментарий"}

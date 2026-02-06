@@ -9,12 +9,18 @@ User = get_user_model()
 class BaseTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.author = User.objects.create_user(username="author", password="password123")
-        cls.reader = User.objects.create_user(username="reader", password="password123")
+        # Создаем пользователей
+        cls.author = User.objects.create_user(
+            username="author", password="password123"
+        )
+        cls.reader = User.objects.create_user(
+            username="reader", password="password123"
+        )
         cls.another_user = User.objects.create_user(
             username="another", password="password123"
         )
 
+        # Создаем заметки
         cls.note = Note.objects.create(
             title="Тестовая заметка",
             text="Текст заметки",
@@ -28,7 +34,7 @@ class BaseTestCase(TestCase):
             author=cls.another_user,
         )
 
-        # URL-адреса
+        # Рассчитываем URL-адреса заранее
         cls.home_url = reverse("notes:home")
         cls.list_url = reverse("notes:list")
         cls.success_url = reverse("notes:success")
@@ -40,7 +46,7 @@ class BaseTestCase(TestCase):
         cls.logout_url = reverse("users:logout")
         cls.signup_url = reverse("users:signup")
 
-        # Клиенты
+        # Создаем клиенты с авторизованными пользователями
         cls.author_client = cls._create_client(cls.author)
         cls.reader_client = cls._create_client(cls.reader)
         cls.another_client = cls._create_client(cls.another_user)

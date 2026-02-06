@@ -26,7 +26,7 @@ class TestLogic(BaseTestCase):
 
     def test_authenticated_user_can_create_note(self):
         """Залогиненный пользователь может создать заметку."""
-        Note.objects.all().delete()  # Очищаем для чистого теста
+        Note.objects.all().delete()
 
         data = {
             "title": "Новая заметка",
@@ -60,27 +60,26 @@ class TestLogic(BaseTestCase):
 
     def test_unique_slug_constraint(self):
         """Невозможно создать две заметки с одинаковым slug."""
-        # Пытаемся создать вторую заметку с тем же слагом
+        # Используем слаг из существующей заметки
         data = {
             "title": "Вторая заметка",
             "text": "Текст второй заметки",
-            "slug": self.note.slug,
+            "slug": self.note.slug,  # Используем слаг существующей заметки
         }
         response = self.author_client.post(self.add_url, data)
 
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertIn("form", response.context)
 
-        # Вместо assertFormError проверяем форму в контексте
+        # Проверяем ошибки формы
         form = response.context["form"]
         self.assertTrue(form.errors)
         self.assertIn("slug", form.errors)
-        # Проверяем, что ошибка содержит предупреждение
         errors = form.errors["slug"]
         self.assertTrue(any(WARNING in str(error) for error in errors))
 
         # Проверяем, что новая заметка не создалась
-        self.assertEqual(Note.objects.count(), 2)  # Только исходные заметки
+        self.assertEqual(Note.objects.count(), 2)
 
     def test_auto_slug_generation(self):
         """Если при создании заметки не заполнен slug,
@@ -161,7 +160,9 @@ class TestLogic(BaseTestCase):
         note_id = self.another_note.id
 
         # Получаем URL для удаления чужой заметки
-        foreign_delete_url = self._get_note_url("delete", self.another_note.slug)
+        foreign_delete_url = self._get_note_url(
+            "delete", self.another_note.slug
+        )
         response = self.author_client.post(foreign_delete_url)
 
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)

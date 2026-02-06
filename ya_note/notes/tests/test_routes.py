@@ -37,6 +37,7 @@ class TestRoutes(BaseTestCase):
             self.edit_url,
             self.delete_url,
         ]
+
         for url in urls:
             with self.subTest(url=url, user="author"):
                 response = self.author_client.get(url)
@@ -73,7 +74,9 @@ class TestRoutes(BaseTestCase):
             (self.client, self.logout_url, HTTPStatus.METHOD_NOT_ALLOWED),
             (self.client, self.signup_url, HTTPStatus.OK),
             (self.author_client, self.login_url, HTTPStatus.OK),
-            (self.author_client, self.logout_url, HTTPStatus.METHOD_NOT_ALLOWED),
+            (self.author_client, self.logout_url,
+             HTTPStatus.METHOD_NOT_ALLOWED
+             ),
             (self.author_client, self.signup_url, HTTPStatus.OK),
         ]
 

@@ -8,6 +8,8 @@ from django.urls import reverse
 from django.utils import timezone
 from news.models import Comment, News
 
+pytestmark = pytest.mark.django_db
+
 # Константа лимита новостей
 NEWS_COUNT_ON_HOME_PAGE = getattr(settings, "NEWS_COUNT_ON_HOME_PAGE", 10)
 
@@ -24,22 +26,30 @@ def reader():
 
 @pytest.fixture
 def user():
-    return User.objects.create_user(username="testuser", password="password123")
+    return User.objects.create_user(
+        username="testuser", password="password123"
+    )
 
 
 @pytest.fixture
 def another_user():
-    return User.objects.create_user(username="anotheruser", password="password123")
+    return User.objects.create_user(
+        username="anotheruser", password="password123"
+    )
 
 
 @pytest.fixture
 def news():
-    return News.objects.create(title="Тестовая новость", text="Текст новости")
+    return News.objects.create(
+        title="Тестовая новость", text="Текст новости"
+    )
 
 
 @pytest.fixture
 def comment(author, news):
-    return Comment.objects.create(news=news, author=author, text="Тестовый комментарий")
+    return Comment.objects.create(
+        news=news, author=author, text="Тестовый комментарий"
+    )
 
 
 @pytest.fixture

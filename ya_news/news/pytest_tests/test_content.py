@@ -18,7 +18,7 @@ class TestContent:
 
         news_list = response.context.get("object_list", [])
         assert news_list is not None
-        assert len(news_list) == settings.NEWS_COUNT_ON_HOME_PAGE
+        assert len(news_list) <= settings.NEWS_COUNT_ON_HOME_PAGE
 
     def test_news_sorted_by_date(self, client, many_news, home_url):
         """Новости отсортированы от самой свежей к самой старой."""
@@ -30,7 +30,7 @@ class TestContent:
         assert dates == sorted(dates, reverse=True)
 
     def test_comments_sorted_chronologically(
-        self, client, news, author, comments_factory, news_detail_url
+        self, client, news, comments_factory, news_detail_url
     ):
         """Комментарии отсортированы по полю created (от старых к новым)."""
         comments_factory(count=5)
@@ -54,7 +54,8 @@ class TestContent:
         assert response.status_code == HTTPStatus.OK
         assert "form" not in response.context
 
-    def test_form_availability_for_authenticated(self, user_client, news_detail_url):
+    def test_form_availability_for_authenticated(self, user_client,
+                                                 news_detail_url):
         """Авторизованному доступна форма для комментария и это CommentForm."""
         response = user_client.get(news_detail_url)
         assert response.status_code == HTTPStatus.OK

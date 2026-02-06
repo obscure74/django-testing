@@ -4,7 +4,7 @@ from notes.tests.base import BaseTestCase
 
 class TestContent(BaseTestCase):
     def test_note_in_object_list(self):
-        """Отдельная заметка передаётся на страницу со списком заметок."""
+        """отдельная заметка передаётся на страницу со списком заметок."""
         response = self.author_client.get(self.list_url)
         object_list = response.context["object_list"]
 
@@ -14,7 +14,7 @@ class TestContent(BaseTestCase):
         self.assertNotIn(self.another_note, object_list)
 
     def test_user_notes_isolation(self):
-        """В список заметок одного пользователя не попадают заметки другого."""
+        """в список заметок одного пользователя не попадают заметки другого."""
         # Автор видит только свои заметки
         response = self.author_client.get(self.list_url)
         author_notes = response.context["object_list"]

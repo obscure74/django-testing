@@ -10,19 +10,16 @@ class News(models.Model):
     date = models.DateField(default=datetime.today)
 
     class Meta:
-        ordering = ('-date',)
-        verbose_name_plural = 'Новости'
-        verbose_name = 'Новость'
+        ordering = ("-date",)
+        verbose_name_plural = "Новости"
+        verbose_name = "Новость"
 
     def __str__(self):
         return self.title
 
 
 class Comment(models.Model):
-    news = models.ForeignKey(
-        News,
-        on_delete=models.CASCADE
-    )
+    news = models.ForeignKey(News, on_delete=models.CASCADE)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -31,7 +28,7 @@ class Comment(models.Model):
     created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ('created',)
+        ordering = ("created",)
 
     def __str__(self):
         return self.text[:50]

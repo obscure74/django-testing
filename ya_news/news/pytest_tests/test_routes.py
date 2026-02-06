@@ -71,7 +71,8 @@ class TestRoutes:
             ("users:signup", HTTPStatus.OK),
         ],
     )
-    def test_auth_pages_accessible(self, client, reverse_name, expected_status):
+    def test_auth_pages_accessible(self, client, reverse_name,
+                                   expected_status):
         """Страницы регистрации, входа и выхода доступны анонимам."""
         url = reverse(reverse_name)
         response = client.get(url)
