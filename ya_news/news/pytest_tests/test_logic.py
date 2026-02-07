@@ -1,6 +1,7 @@
 from http import HTTPStatus
 
 import pytest
+
 from news.forms import BAD_WORDS, WARNING
 from news.models import Comment
 
@@ -24,10 +25,11 @@ class TestLogic:
     ):
         """Авторизованный пользователь может отправить комментарий."""
         Comment.objects.all().delete()
+        initial_count = Comment.objects.count()
         data = {"text": "Тестовый комментарий"}
         response = user_client.post(news_detail_url, data)
         assert response.status_code == HTTPStatus.FOUND
-        assert Comment.objects.count() == 1
+        assert Comment.objects.count() == initial_count + 1
 
         comment = Comment.objects.get()
         assert comment.text == data["text"]
@@ -46,6 +48,7 @@ class TestLogic:
         data = {"text": f"Это {bad_word} слово"}
         response = user_client.post(news_detail_url, data)
 
+        # Форма с ошибкой возвращает 200 OK, а не перенаправление
         assert response.status_code == HTTPStatus.OK
         # Проверяем, что комментарий не создался
         assert Comment.objects.count() == initial_count
@@ -60,48 +63,45 @@ class TestLogic:
         text_errors = form.errors["text"]
         assert any(WARNING in str(error) for error in text_errors)
 
-    def test_user_can_edit_delete_own_comments(self, author_client,
-                                               author, news, comment,
-                                               comment_edit_url,
-                                               comment_delete_url):
-        """
-        Авторизованный пользователь может редактировать
-        и удалять свои комментарии.
-        """
-        # Тест редактирования
+    def test_user_can_edit_own_comments(self, author_client, comment,
+                                        comment_edit_url):
+        """Авторизованный пользователь может редактировать свои комментарии."""
         edit_data = {"text": "Обновленный комментарий"}
         response = author_client.post(comment_edit_url, edit_data)
         assert response.status_code == HTTPStatus.FOUND
 
         updated = Comment.objects.get(pk=comment.id)
         assert updated.text == edit_data["text"]
-        assert updated.author == author
-        assert updated.news == news
+        assert updated.author == comment.author
+        assert updated.news == comment.news
 
-        # Тест удаления
+    def test_user_can_delete_own_comment(
+        self, author_client, comment, comment_delete_url
+    ):
+        """Авторизованный пользователь может удалять свой комментарий."""
+        comment_id = comment.id
         response = author_client.post(comment_delete_url)
         assert response.status_code == HTTPStatus.FOUND
-        assert not Comment.objects.filter(pk=comment.id).exists()
+        assert not Comment.objects.filter(pk=comment_id).exists()
 
-    def test_user_cannot_edit_delete_other_comments(self, user_client, author,
-                                                    news, comment,
-                                                    comment_edit_url,
-                                                    comment_delete_url):
-        """Пользователь не может редактировать/удалять чужие комментарии."""
-        # Тест редактирования чужого комментария
+    def test_user_cannot_edit_other_comments(
+        self, user_client, another_comment, another_comment_edit_url
+    ):
+        """Пользователь не может редактировать чужие комментарии."""
         edit_data = {"text": "Взломанный комментарий"}
-        response = user_client.post(comment_edit_url, edit_data)
+        response = user_client.post(another_comment_edit_url, edit_data)
         assert response.status_code == HTTPStatus.NOT_FOUND
 
         # Проверяем, что комментарий не изменился
-        persisted = Comment.objects.get(pk=comment.id)
-        assert persisted.text == comment.text
-        assert persisted.author == author
-        assert persisted.news == news
+        persisted = Comment.objects.get(pk=another_comment.id)
+        assert persisted.text == another_comment.text
+        assert persisted.author == another_comment.author
+        assert persisted.news == another_comment.news
 
-        # Тест удаления чужого комментария
-        response = user_client.post(comment_delete_url)
+    def test_user_cannot_delete_other_comments(
+        self, user_client, another_comment, another_comment_delete_url
+    ):
+        """Пользователь не может удалять чужие комментарии."""
+        response = user_client.post(another_comment_delete_url)
         assert response.status_code == HTTPStatus.NOT_FOUND
-
-        # Проверяем, что комментарий не удалился
-        assert Comment.objects.filter(pk=comment.id).exists()
+        assert Comment.objects.filter(pk=another_comment.id).exists()

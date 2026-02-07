@@ -6,12 +6,10 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
+
 from news.models import Comment, News
 
 pytestmark = pytest.mark.django_db
-
-# Константа лимита новостей
-NEWS_COUNT_ON_HOME_PAGE = getattr(settings, "NEWS_COUNT_ON_HOME_PAGE", 10)
 
 
 @pytest.fixture
@@ -53,43 +51,37 @@ def comment(author, news):
 
 
 @pytest.fixture
-def client():
-    return Client()
+def another_comment(another_user, news):
+    return Comment.objects.create(
+        news=news, author=another_user, text="Чужой комментарий"
+    )
 
 
 @pytest.fixture
 def many_news():
-    """Создаёт NEWS_COUNT_ON_HOME_PAGE + 1 новостей для тестов лимита."""
+    """Создаёт 10 + 1 новостей для тестов лимита."""
     News.objects.all().delete()
     now = timezone.now()
-    count = NEWS_COUNT_ON_HOME_PAGE + 1
+    count = settings.NEWS_COUNT_ON_HOME_PAGE + 1
     for i in range(count):
         News.objects.create(
             title=f"Новость {i}",
             text=f"Текст новости {i}",
             date=now - timedelta(hours=i),
         )
-    return News.objects.all()
 
 
 @pytest.fixture
-def comments_factory(news, author):
-    """Фабрика для создания нескольких комментариев."""
-
-    def _create_comments(count=5):
-        Comment.objects.filter(news=news).delete()
-        created = []
-        now = timezone.now()
-        for i in range(count):
-            c = Comment.objects.create(
-                news=news, author=author, text=f"Комментарий {i}"
-            )
-            c.created = now - timedelta(minutes=(count - i))
-            c.save(update_fields=["created"])
-            created.append(c)
-        return created
-
-    return _create_comments
+def many_comments(news, author):
+    """Создаёт несколько комментариев."""
+    Comment.objects.filter(news=news).delete()
+    now = timezone.now()
+    for i in range(5):
+        comment = Comment.objects.create(
+            news=news, author=author, text=f"Комментарий {i}"
+        )
+        comment.created = now - timedelta(minutes=(5 - i))
+        comment.save(update_fields=["created"])
 
 
 # Фикстуры для URL-адресов
@@ -129,21 +121,33 @@ def comment_delete_url(comment):
 
 
 @pytest.fixture
+def another_comment_edit_url(another_comment):
+    """URL для редактирования чужого комментария."""
+    return reverse("news:edit", args=(another_comment.id,))
+
+
+@pytest.fixture
+def another_comment_delete_url(another_comment):
+    """URL для удаления чужого комментария."""
+    return reverse("news:delete", args=(another_comment.id,))
+
+
+@pytest.fixture
 def author_client(author):
     client = Client()
-    client.login(username="author", password="password123")
+    client.force_login(author)
     return client
 
 
 @pytest.fixture
 def user_client(user):
     client = Client()
-    client.login(username="testuser", password="password123")
+    client.force_login(user)
     return client
 
 
 @pytest.fixture
 def another_user_client(another_user):
     client = Client()
-    client.login(username="anotheruser", password="password123")
+    client.force_login(another_user)
     return client

@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
+
 from notes.models import Note
 
 User = get_user_model()
@@ -46,16 +47,23 @@ class BaseTestCase(TestCase):
         cls.logout_url = reverse("users:logout")
         cls.signup_url = reverse("users:signup")
 
+        # Рассчитываем URL для чужой заметки
+        cls.foreign_detail_url = reverse("notes:detail",
+                                         args=(cls.another_note.slug,))
+        cls.foreign_edit_url = reverse("notes:edit",
+                                       args=(cls.another_note.slug,))
+        cls.foreign_delete_url = reverse("notes:delete",
+                                         args=(cls.another_note.slug,))
+
         # Создаем клиенты с авторизованными пользователями
         cls.author_client = cls._create_client(cls.author)
         cls.reader_client = cls._create_client(cls.reader)
         cls.another_client = cls._create_client(cls.another_user)
+        cls.anonymous_client = Client()
 
     @classmethod
     def _create_client(cls, user):
         """Создает клиент с авторизованным пользователем."""
-        from django.test import Client
-
         client = Client()
-        client.login(username=user.username, password="password123")
+        client.force_login(user)
         return client

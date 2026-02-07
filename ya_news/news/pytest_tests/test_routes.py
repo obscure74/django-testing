@@ -1,79 +1,54 @@
 from http import HTTPStatus
 
 import pytest
-from django.urls import reverse
 
 pytestmark = pytest.mark.django_db
 
 
 class TestRoutes:
     @pytest.mark.parametrize(
-        "parametrized_client, url_name, args, expected_status",
+        "client_fixture, url_fixture, expected_status",
         [
-            ("client", "news:home", None, HTTPStatus.OK),
-            ("client", "users:login", None, HTTPStatus.OK),
-            ("client", "users:logout", None, HTTPStatus.METHOD_NOT_ALLOWED),
-            ("client", "users:signup", None, HTTPStatus.OK),
-            ("client", "news:detail", "news", HTTPStatus.OK),
-            ("client", "news:edit", "comment", HTTPStatus.FOUND),
-            ("client", "news:delete", "comment", HTTPStatus.FOUND),
-            ("author_client", "news:edit", "comment", HTTPStatus.OK),
-            ("author_client", "news:delete", "comment", HTTPStatus.OK),
-            ("user_client", "news:edit", "comment", HTTPStatus.NOT_FOUND),
-            ("user_client", "news:delete", "comment", HTTPStatus.NOT_FOUND),
+            # Анонимный пользователь
+            ("client", "home_url", HTTPStatus.OK),
+            ("client", "login_url", HTTPStatus.OK),
+            ("client", "logout_url", HTTPStatus.METHOD_NOT_ALLOWED),
+            ("client", "signup_url", HTTPStatus.OK),
+            ("client", "news_detail_url", HTTPStatus.OK),
+            ("client", "comment_edit_url", HTTPStatus.FOUND),
+            ("client", "comment_delete_url", HTTPStatus.FOUND),
+            # Автор комментария
+            ("author_client", "comment_edit_url", HTTPStatus.OK),
+            ("author_client", "comment_delete_url", HTTPStatus.OK),
+            # Другой авторизованный пользователь (не автор)
+            ("user_client", "comment_edit_url", HTTPStatus.NOT_FOUND),
+            ("user_client", "comment_delete_url", HTTPStatus.NOT_FOUND),
         ],
     )
     def test_pages_status_codes(
         self,
         request,
-        news,
-        comment,
-        parametrized_client,
-        url_name,
-        args,
+        client_fixture,
+        url_fixture,
         expected_status,
     ):
-        client = request.getfixturevalue(parametrized_client)
-
-        if args == "news":
-            url_args = (news.id,)
-        elif args == "comment":
-            url_args = (comment.id,)
-        else:
-            url_args = ()
-
-        url = reverse(url_name, args=url_args)
+        client = request.getfixturevalue(client_fixture)
+        url = request.getfixturevalue(url_fixture)
         response = client.get(url)
         assert response.status_code == expected_status
 
     @pytest.mark.parametrize(
-        "url_name, args",
+        "url_fixture",
         [
-            ("news:edit", "comment"),
-            ("news:delete", "comment"),
+            "comment_edit_url",
+            "comment_delete_url",
         ],
     )
     def test_anonymous_redirect_to_login(
-        self, client, comment, url_name, args, login_url
+        self, client, url_fixture, login_url, request
     ):
-        url_args = (comment.id,) if args == "comment" else ()
-        url = reverse(url_name, args=url_args)
+        url = request.getfixturevalue(url_fixture)
         response = client.get(url)
         assert response.status_code == HTTPStatus.FOUND
         expected_url = f"{login_url}?next={url}"
         assert response.url == expected_url
-
-    @pytest.mark.parametrize(
-        "reverse_name, expected_status",
-        [
-            ("users:login", HTTPStatus.OK),
-            ("users:logout", HTTPStatus.METHOD_NOT_ALLOWED),
-            ("users:signup", HTTPStatus.OK),
-        ],
-    )
-    def test_auth_pages_accessible(self, client, reverse_name,
-                                   expected_status):
-        """Страницы регистрации, входа и выхода доступны анонимам."""
-        url = reverse(reverse_name)
-        response = client.get(url)
-        assert response.status_code == expected_status
