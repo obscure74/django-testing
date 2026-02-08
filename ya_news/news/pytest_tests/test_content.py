@@ -17,8 +17,8 @@ class TestContent:
         response = client.get(home_url)
         assert response.status_code == HTTPStatus.OK
 
-        news_list = response.context.get("object_list")
-        assert len(news_list) == settings.NEWS_COUNT_ON_HOME_PAGE
+        news_list = response.context["object_list"]
+        assert news_list.count() == settings.NEWS_COUNT_ON_HOME_PAGE
 
     def test_news_sorted_by_date(self, client, many_news, home_url):
         """Новости отсортированы от самой свежей к самой старой."""
@@ -36,13 +36,21 @@ class TestContent:
         response = client.get(news_detail_url)
         assert response.status_code == HTTPStatus.OK
 
-        # Комментарии могут быть в контексте или в объекте новости
+        # Проверяем разные варианты, как комментарии могут быть переданы
+        news_obj = response.context["news"]
+
+        # Комментарии как отдельный ключ в контексте
         if "comments" in response.context:
             comments = list(response.context["comments"])
-        else:
-            # Если комментарии не в отдельном контексте, берем их из новости
-            news_obj = response.context["news"]
+        # Комментарии как related manager у новости
+        elif hasattr(news_obj, 'comment_set'):
             comments = list(news_obj.comment_set.all())
+        # Комментарии как свойство новости
+        elif hasattr(news_obj, 'comments'):
+            comments = list(news_obj.comments.all())
+        else:
+            # Если комментарии не найдены - тест должен упасть
+            assert False, "Комментарии не найдены в контексте ответа"
 
         assert len(comments) >= 2
         dates = [c.created for c in comments]

@@ -59,7 +59,6 @@ class BaseTestCase(TestCase):
         cls.author_client = cls._create_client(cls.author)
         cls.reader_client = cls._create_client(cls.reader)
         cls.another_client = cls._create_client(cls.another_user)
-        cls.anonymous_client = Client()
 
     @classmethod
     def _create_client(cls, user):

@@ -1,11 +1,6 @@
 from http import HTTPStatus
 
-from django.contrib.auth import get_user_model
-
 from notes.tests.base import BaseTestCase
-
-
-User = get_user_model()
 
 
 class TestRoutes(BaseTestCase):
@@ -37,11 +32,16 @@ class TestRoutes(BaseTestCase):
         ]
 
         for client, url, expected_status in urls_to_test:
-            if client.session.get('_auth_user_id'):
-                user = User.objects.get(pk=client.session.get('_auth_user_id'))
-                username = user.username
-            else:
+            if client is self.client:
                 username = 'anonymous'
+            elif client is self.author_client:
+                username = 'author'
+            elif client is self.reader_client:
+                username = 'reader'
+            elif client is self.another_client:
+                username = 'another'
+            else:
+                username = 'unknown'
 
             with self.subTest(url=url, username=username):
                 response = client.get(url)
