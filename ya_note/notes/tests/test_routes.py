@@ -1,5 +1,7 @@
 from http import HTTPStatus
 
+from django.contrib.auth import get_user
+
 from notes.tests.base import BaseTestCase
 
 
@@ -32,16 +34,18 @@ class TestRoutes(BaseTestCase):
         ]
 
         for client, url, expected_status in urls_to_test:
-            if client is self.client:
-                username = 'anonymous'
-            elif client is self.author_client:
-                username = 'author'
-            elif client is self.reader_client:
-                username = 'reader'
-            elif client is self.another_client:
-                username = 'another'
-            else:
-                username = 'unknown'
+            user = None
+            if hasattr(client, 'session'):
+                # Создаем фиктивный request для get_user()
+                from django.test import RequestFactory
+                factory = RequestFactory()
+                request = factory.get(url)
+                request.session = client.session
+                user = get_user(request)
+
+            username = (user.username
+                        if user and user.is_authenticated
+                        else 'anonymous')
 
             with self.subTest(url=url, username=username):
                 response = client.get(url)
