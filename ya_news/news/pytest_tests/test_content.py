@@ -39,18 +39,7 @@ class TestContent:
         # Проверяем разные варианты, как комментарии могут быть переданы
         news_obj = response.context["news"]
 
-        # Комментарии как отдельный ключ в контексте
-        if "comments" in response.context:
-            comments = list(response.context["comments"])
-        # Комментарии как related manager у новости
-        elif hasattr(news_obj, 'comment_set'):
-            comments = list(news_obj.comment_set.all())
-        # Комментарии как свойство новости
-        elif hasattr(news_obj, 'comments'):
-            comments = list(news_obj.comments.all())
-        else:
-            # Если комментарии не найдены - тест должен упасть
-            assert False, "Комментарии не найдены в контексте ответа"
+        comments = list(news_obj.comment_set.all())
 
         assert len(comments) >= 2
         dates = [c.created for c in comments]
